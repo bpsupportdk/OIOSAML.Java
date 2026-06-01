@@ -6,7 +6,7 @@ jakarta-xml-bind-jakarta-xml-bind-api = "4.0.5"
 jakarta-servlet-jsp-jstl-jakarta-servlet-jsp-jstl-api = "3.0.2"
 org-bouncycastle-bcprov-jdk18on = "1.84"
 org-glassfish-jaxb-jaxb = "4.0.7"
-org-opensaml-opensaml = "5.1.6"
+org-opensaml-opensaml = "5.2.2"
 org-slf4j-slf4j-api = "2.0.17"
 
 #test
