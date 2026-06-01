@@ -2,9 +2,14 @@ package dk.gov.oio.saml.servlet;
 
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Map;
 import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
 
+import dk.gov.oio.saml.config.Configuration;
+import dk.gov.oio.saml.service.OIOSAML3Service;
+import dk.gov.oio.saml.session.TestSessionHandlerFactory;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
@@ -27,6 +32,27 @@ import net.shibboleth.shared.codec.Base64Support;
 import net.shibboleth.shared.xml.SerializeSupport;
 
 public class LogoutResponseHandlerTest {
+
+    @BeforeAll
+    public static void beforeAll() throws Exception {
+        Configuration configuration = new Configuration.Builder().setSpEntityID(TestConstants.SP_ENTITY_ID)
+                                                                 .setBaseUrl(TestConstants.SP_BASE_URL)
+                                                                 .setServletRoutingPathPrefix(TestConstants.SP_ROUTING_BASE)
+                                                                 .setServletRoutingPathSuffixError(TestConstants.SP_ROUTING_ERROR)
+                                                                 .setServletRoutingPathSuffixMetadata(TestConstants.SP_ROUTING_METADATA)
+                                                                 .setServletRoutingPathSuffixLogout(TestConstants.SP_ROUTING_LOGOUT)
+                                                                 .setServletRoutingPathSuffixLogoutResponse(TestConstants.SP_ROUTING_LOGOUT_RESPONSE)
+                                                                 .setServletRoutingPathSuffixAssertion(TestConstants.SP_ROUTING_ASSERTION)
+                                                                 .setIdpEntityID(TestConstants.IDP_ENTITY_ID)
+                                                                 .setIdpMetadataUrl(TestConstants.IDP_METADATA_URL)
+                                                                 .setSessionHandlerFactoryClassName(TestSessionHandlerFactory.class.getName())
+                                                                 .setKeystoreLocation(TestConstants.SP_KEYSTORE_LOCATION)
+                                                                 .setKeystorePassword(TestConstants.SP_KEYSTORE_PASSWORD)
+                                                                 .setKeyAlias(TestConstants.SP_KEYSTORE_ALIAS)
+                                                                 .build();
+
+        OIOSAML3Service.init(configuration);
+    }
 
     @DisplayName("Test that a valid logout response from IdP")
     @Test
@@ -56,6 +82,7 @@ public class LogoutResponseHandlerTest {
         Mockito.when(request.getMethod()).thenReturn("GET"); // Method: GET
         Mockito.when(request.getParameter("RelayState")).thenReturn(null); // No RelayState
         Mockito.when(request.getParameter("SAMLResponse")).thenReturn(encodedMessage);
+        Mockito.when(request.getParameterMap()).thenReturn(Map.of("SAMLResponse", new String[]{ encodedMessage }));
 
         // Mock HttpServletResponse
         HttpServletResponse response = Mockito.mock(HttpServletResponse.class);
@@ -96,6 +123,7 @@ public class LogoutResponseHandlerTest {
         Mockito.when(request.getMethod()).thenReturn("GET"); // Method: GET
         Mockito.when(request.getParameter("RelayState")).thenReturn(null); // No RelayState
         Mockito.when(request.getParameter("SAMLResponse")).thenReturn(encodedMessage);
+        Mockito.when(request.getParameterMap()).thenReturn(Map.of("SAMLResponse", new String[]{ encodedMessage }));
 
         // Mock HttpServletResponse
         HttpServletResponse response = Mockito.mock(HttpServletResponse.class);

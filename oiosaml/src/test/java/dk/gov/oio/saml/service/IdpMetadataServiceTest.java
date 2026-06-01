@@ -1,5 +1,6 @@
 package dk.gov.oio.saml.service;
 
+import dk.gov.oio.saml.util.ExternalException;
 import org.junit.jupiter.api.BeforeEach;
 import static org.mockserver.model.HttpRequest.request;
 import static org.mockserver.model.HttpResponse.response;
@@ -17,8 +18,6 @@ import org.opensaml.saml.saml2.metadata.EntityDescriptor;
 import dk.gov.oio.saml.config.Configuration;
 import dk.gov.oio.saml.util.TestConstants;
 
-@ExtendWith(MockServerExtension.class)
-@MockServerSettings(ports = { 8081 })
 public class IdpMetadataServiceTest extends BaseServiceTest {
     private MockServerClient idp;
 
@@ -58,14 +57,15 @@ public class IdpMetadataServiceTest extends BaseServiceTest {
                 request()
                     .withMethod("GET")
                     .withPath("/saml/metadata"),
-                    Times.exactly(1)
+                    Times.unlimited()
             )
             .respond(
                 response()
                    .withStatusCode(200)
                    .withBody(TestConstants.IDP_METADATA));
-        
+
         String entityID = OIOSAML3Service.getConfig().getIdpEntityID();
+        IdPMetadataService.getInstance().clearAll();
         EntityDescriptor entityDescriptor = IdPMetadataService.getInstance().getIdPMetadata(entityID).getEntityDescriptor();
         Assertions.assertNotNull(entityDescriptor);
         Assertions.assertEquals(TestConstants.IDP_ENTITY_ID, entityDescriptor.getEntityID());
@@ -79,7 +79,7 @@ public class IdpMetadataServiceTest extends BaseServiceTest {
                 request()
                     .withMethod("GET")
                     .withPath("/saml/metadata"),
-                    Times.exactly(1)
+                    Times.unlimited()
             )
             .respond(
                 response()
@@ -88,7 +88,9 @@ public class IdpMetadataServiceTest extends BaseServiceTest {
 
         // we should get NULL back, if the EntityId does not match
         String entityID = OIOSAML3Service.getConfig().getIdpEntityID();
-        EntityDescriptor entityDescriptor = IdPMetadataService.getInstance().getIdPMetadata(entityID).getEntityDescriptor();
-        Assertions.assertNull(entityDescriptor);
+        Assertions.assertThrows(ExternalException.class, () -> {
+            IdPMetadataService.getInstance().getIdPMetadata(entityID).getEntityDescriptor();
+//            Assertions.assertNull(entityDescriptor);
+        }, () -> "IdP entityID not found in metadata");
     }
 }

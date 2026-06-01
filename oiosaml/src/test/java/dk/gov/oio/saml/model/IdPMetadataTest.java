@@ -1,5 +1,6 @@
 package dk.gov.oio.saml.model;
 
+import dk.gov.oio.saml.service.BaseServiceTest;
 import dk.gov.oio.saml.service.IdpMetadataServiceTest;
 import dk.gov.oio.saml.util.ExternalException;
 import dk.gov.oio.saml.util.InternalException;
@@ -7,7 +8,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-public class IdPMetadataTest {
+public class IdPMetadataTest extends BaseServiceTest {
     @DisplayName("Test ResponseLocation is returned when present")
     @Test
     public void testGetLogoutResponseEndpoint_WithResponseLocation() throws ExternalException, InternalException {

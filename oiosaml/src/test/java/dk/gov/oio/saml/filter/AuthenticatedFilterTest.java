@@ -6,6 +6,7 @@ import static org.mockserver.model.HttpResponse.response;
 import java.util.*;
 import java.util.stream.Stream;
 
+import dk.gov.oio.saml.service.BaseServiceTest;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.FilterConfig;
 import jakarta.servlet.ServletContext;
@@ -17,20 +18,16 @@ import jakarta.servlet.http.HttpSession;
 import dk.gov.oio.saml.extensions.appswitch.*;
 import dk.gov.oio.saml.session.AssertionWrapper;
 import dk.gov.oio.saml.session.SessionHandler;
-import dk.gov.oio.saml.session.TestSessionHandlerFactory;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.mockserver.client.MockServerClient;
-import org.mockserver.junit.jupiter.MockServerExtension;
-import org.mockserver.junit.jupiter.MockServerSettings;
 import org.mockserver.matchers.Times;
 
 import dk.gov.oio.saml.config.Configuration;
@@ -41,30 +38,10 @@ import dk.gov.oio.saml.util.Constants;
 import dk.gov.oio.saml.util.TestConstants;
 import org.opensaml.core.xml.config.XMLObjectProviderRegistrySupport;
 
-@ExtendWith(MockServerExtension.class)
-@MockServerSettings(ports = { 8081 })
-public class AuthenticatedFilterTest {
+public class AuthenticatedFilterTest extends BaseServiceTest {
 
     @BeforeAll
-    public static void beforeAll(MockServerClient idp) throws Exception {
-        Configuration configuration = new Configuration.Builder()
-                .setSpEntityID(TestConstants.SP_ENTITY_ID)
-                .setBaseUrl(TestConstants.SP_BASE_URL)
-                .setServletRoutingPathPrefix(TestConstants.SP_ROUTING_BASE)
-                .setServletRoutingPathSuffixError(TestConstants.SP_ROUTING_ERROR)
-                .setServletRoutingPathSuffixMetadata(TestConstants.SP_ROUTING_METADATA)
-                .setServletRoutingPathSuffixLogout(TestConstants.SP_ROUTING_LOGOUT)
-                .setServletRoutingPathSuffixLogoutResponse(TestConstants.SP_ROUTING_LOGOUT_RESPONSE)
-                .setServletRoutingPathSuffixAssertion(TestConstants.SP_ROUTING_ASSERTION)
-                .setIdpEntityID(TestConstants.IDP_ENTITY_ID)
-                .setIdpMetadataUrl(TestConstants.IDP_METADATA_URL)
-                .setSessionHandlerFactoryClassName(TestSessionHandlerFactory.class.getName())
-                .setKeystoreLocation(TestConstants.SP_KEYSTORE_LOCATION)
-                .setKeystorePassword(TestConstants.SP_KEYSTORE_PASSWORD)
-                .setKeyAlias(TestConstants.SP_KEYSTORE_ALIAS)
-                .build();
-
-        OIOSAML3Service.init(configuration);
+    public static void beforeAll(MockServerClient idp) {
         
         // make sure IdP responds with useful metadata
         idp

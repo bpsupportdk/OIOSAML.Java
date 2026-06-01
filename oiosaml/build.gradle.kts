@@ -57,4 +57,5 @@ java {
 
 tasks.test {
     useJUnitPlatform()
+//    forkEvery = 1
 }

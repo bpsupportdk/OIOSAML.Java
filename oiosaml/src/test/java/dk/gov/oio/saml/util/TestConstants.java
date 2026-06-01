@@ -1,5 +1,7 @@
 package dk.gov.oio.saml.util;
 
+import org.mockserver.client.MockServerClient;
+
 public class TestConstants {
     public static final String SP_ENTITY_ID = "http://sp.localhost";
     public static final String SP_BASE_URL = "http://localhost:8080";
@@ -214,5 +216,9 @@ public class TestConstants {
             "/1eeeaSRvRiYz2+jIIPuGkMbHUdDJM6RuCertu/Pq2IQFIB0t/4EahVxTJcWmWY0" + 
             "j3TQWARCJfoE2baAD/xKasUNAItq9w8T6AhxFb1g2A4fUVhdKDIqA+SLNzc0VO9V" + 
             "xhvTIY8nNgEWuW8XKeUXPk/z4WNojNlO2NiHBJzyhEvptvIUvgshbLYD4vJZwry3" + 
-            "9dk+tZf4c/vNlk57P2hcK4sPtqrxlKxrvZFeOA0Jn9PVbn0KWw/lOxx3w24="; 
+            "9dk+tZf4c/vNlk57P2hcK4sPtqrxlKxrvZFeOA0Jn9PVbn0KWw/lOxx3w24=";
+
+    public static String getIdpMetadataUrl(MockServerClient mockServerClient) {
+        return IDP_METADATA_URL.replace("8081", mockServerClient.getPort().toString());
+    }
 }

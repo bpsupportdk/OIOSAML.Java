@@ -2,6 +2,7 @@ package dk.gov.oio.saml.servlet;
 
 import dk.gov.oio.saml.model.NSISLevel;
 import dk.gov.oio.saml.service.AuthnRequestService;
+import dk.gov.oio.saml.service.BaseServiceTest;
 import dk.gov.oio.saml.service.OIOSAML3Service;
 import dk.gov.oio.saml.session.AssertionWrapper;
 import dk.gov.oio.saml.session.AuthnRequestWrapper;
@@ -9,6 +10,8 @@ import dk.gov.oio.saml.session.SessionHandler;
 import dk.gov.oio.saml.util.IdpUtil;
 import dk.gov.oio.saml.util.InternalException;
 import dk.gov.oio.saml.util.TestConstants;
+
+import java.util.Map;
 import java.util.UUID;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -16,26 +19,47 @@ import jakarta.servlet.http.HttpSession;
 import net.shibboleth.shared.codec.Base64Support;
 import net.shibboleth.shared.xml.SerializeSupport;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.mockserver.client.MockServerClient;
+import org.mockserver.matchers.Times;
 import org.opensaml.core.xml.XMLObject;
 import org.opensaml.core.xml.util.XMLObjectSupport;
 import org.opensaml.messaging.context.MessageContext;
-import org.opensaml.saml.common.SAMLObject;
 import org.opensaml.saml.saml2.core.AuthnRequest;
 import org.w3c.dom.Element;
 
-public class AssertionHandlerTest {
+import static org.mockserver.model.HttpRequest.request;
+import static org.mockserver.model.HttpResponse.response;
+
+public class AssertionHandlerTest extends BaseServiceTest {
 
     private HttpSession session;
+
+    @BeforeAll
+    public static void beforeAll(MockServerClient idp) throws Exception {
+        // make sure IdP responds with useful metadata
+        idp
+                .when(request()
+                              .withMethod("GET")
+                              .withPath("/saml/metadata"), Times.unlimited()
+                )
+                .respond(
+                        response()
+                                .withStatusCode(200)
+                                .withBody(TestConstants.IDP_METADATA)
+                );
+    }
 
     @BeforeEach
     public void beforeEach() throws InternalException {
         session = Mockito.mock(HttpSession.class);
         Mockito.when(session.getId()).thenReturn("TEST_SESSION_ID");
+        Mockito.when(session.getMaxInactiveInterval()).thenReturn(0);
     }
 
     @DisplayName("Test that handler will accept a valid assertion")
@@ -61,6 +85,7 @@ public class AssertionHandlerTest {
         // mock session with state: not logged in at any NSIS level
         SessionHandler sessionHandler = OIOSAML3Service.getSessionHandlerFactory().getHandler();
         Mockito.when(sessionHandler.getAuthnRequest(session)).thenReturn(wrapper);
+        Mockito.when(sessionHandler.storeAssertion(Mockito.eq(session), Mockito.any(), Mockito.any())).thenReturn(session);
 
 
         // Mock HttpServletRequest
@@ -70,6 +95,7 @@ public class AssertionHandlerTest {
         Mockito.when(request.getMethod()).thenReturn("POST"); // Method: POST
         Mockito.when(request.getParameter("RelayState")).thenReturn(null); // No RelayState
         Mockito.when(request.getParameter("SAMLResponse")).thenReturn(base64EncodedMessage); // Return base64 encoded SamlResponse
+        Mockito.when(request.getParameterMap()).thenReturn(Map.of("SAMLResponse", new String[]{base64EncodedMessage}));
 
         // Mock HttpServletResponse
         HttpServletResponse response = Mockito.mock(HttpServletResponse.class);
@@ -81,7 +107,7 @@ public class AssertionHandlerTest {
         assertionHandler.handlePost(request, response);
 
         Mockito.verify(response).sendRedirect("/"); // Verify that handler redirected
-        Mockito.verify(sessionHandler).storeAssertion(Mockito.eq(session), assertionWrapperArgumentCaptor.capture(), request);
+        Mockito.verify(sessionHandler).storeAssertion(Mockito.eq(session), assertionWrapperArgumentCaptor.capture(), Mockito.eq(request));
 
         Assertions.assertEquals(assertionWrapperArgumentCaptor.getValue().getNsisLevel(), NSISLevel.SUBSTANTIAL);
     }
@@ -117,6 +143,7 @@ public class AssertionHandlerTest {
         Mockito.when(request.getMethod()).thenReturn("POST"); // Method: POST
         Mockito.when(request.getParameter("RelayState")).thenReturn(null); // No RelayState
         Mockito.when(request.getParameter("SAMLResponse")).thenReturn(base64EncodedMessage); // Return base64 encoded SamlResponse
+        Mockito.when(request.getParameterMap()).thenReturn(Map.of("SAMLResponse", new String[]{base64EncodedMessage}));
 
         // Mock HttpServletResponse
         HttpServletResponse response = Mockito.mock(HttpServletResponse.class);
@@ -128,7 +155,7 @@ public class AssertionHandlerTest {
             assertionHandler.handlePost(request, response);
         });
 
-        Mockito.verify(sessionHandler, Mockito.never()).storeAssertion(Mockito.eq(session), Mockito.any(AssertionWrapper.class), request);
+        Mockito.verify(sessionHandler, Mockito.never()).storeAssertion(Mockito.eq(session), Mockito.any(AssertionWrapper.class), Mockito.eq(request));
         Assertions.assertFalse(sessionHandler.isAuthenticated(session));
     }    
 }
