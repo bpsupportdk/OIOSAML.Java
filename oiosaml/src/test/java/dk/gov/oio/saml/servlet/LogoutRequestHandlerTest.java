@@ -6,15 +6,21 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.util.HashMap;
+import java.util.Map;
 import java.util.zip.Deflater;
 import java.util.zip.DeflaterOutputStream;
 
+import dk.gov.oio.saml.service.BaseServiceTest;
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
+import org.mockserver.client.MockServerClient;
+import org.mockserver.matchers.Times;
 import org.opensaml.core.xml.XMLObject;
 import org.opensaml.core.xml.util.XMLObjectSupport;
 import org.opensaml.messaging.context.MessageContext;
@@ -42,7 +48,24 @@ import jakarta.servlet.http.HttpSession;
 import net.shibboleth.shared.codec.Base64Support;
 import net.shibboleth.shared.xml.SerializeSupport;
 
-public class LogoutRequestHandlerTest {
+import static org.mockserver.model.HttpRequest.request;
+import static org.mockserver.model.HttpResponse.response;
+
+public class LogoutRequestHandlerTest extends BaseServiceTest {
+    @BeforeAll
+    public static void beforeAll(MockServerClient idp) throws Exception {
+        // make sure IdP responds with useful metadata
+        idp
+                .when(request()
+                              .withMethod("GET")
+                              .withPath("/saml/metadata"), Times.unlimited()
+                )
+                .respond(
+                        response()
+                                .withStatusCode(200)
+                                .withBody(TestConstants.IDP_METADATA)
+                );
+    }
 
     @DisplayName("Test that a logged-in user can perform a logout")
     @Test
@@ -55,6 +78,7 @@ public class LogoutRequestHandlerTest {
 
         // Mock session with state: not logged in at any NSIS level
         Mockito.when(sessionHandler.isAuthenticated(session)).thenReturn(true);
+        Mockito.when(assertionWrapper.getIssuer()).thenReturn(TestConstants.IDP_ENTITY_ID);
         Mockito.when(assertionWrapper.getNsisLevel()).thenReturn(NSISLevel.SUBSTANTIAL);
         Mockito.when(assertionWrapper.getSubjectNameId()).thenReturn("https://data.gov.dk/model/core/eid/person/uuid/37a5a1aa-67ce-4f70-b7c0-b8e678d585f7");
         Mockito.when(assertionWrapper.getSubjectNameIdFormat()).thenReturn(NameID.PERSISTENT);
@@ -65,6 +89,7 @@ public class LogoutRequestHandlerTest {
         Mockito.when(request.getSession()).thenReturn(session); // Mocked Session
         Mockito.when(request.getMethod()).thenReturn("GET"); // Method: GET
         Mockito.when(request.getParameter("SAMLRequest")).thenReturn(null); // No SAMLRequest (SP-initiated Logout)
+        Mockito.when(request.getParameterMap()).thenReturn(Map.of());
 
         // Mock HttpServletResponse
         HttpServletResponse response = Mockito.mock(HttpServletResponse.class);
@@ -110,7 +135,7 @@ public class LogoutRequestHandlerTest {
         // Deflate
         final ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
         final DeflaterOutputStream deflaterStream = new DeflaterOutputStream(bytesOut, new Deflater(8, true));
-        deflaterStream.write(messageXML.getBytes("UTF-8"));
+        deflaterStream.write(messageXML.getBytes(StandardCharsets.UTF_8));
         deflaterStream.finish();
 
         // Base64Encode
@@ -120,6 +145,7 @@ public class LogoutRequestHandlerTest {
         Mockito.when(sessionHandler.getAssertion(sessionIndex)).thenReturn(assertionWrapper);
         Mockito.when(sessionHandler.isAuthenticated(session)).thenReturn(true);
         Mockito.when(sessionHandler.getAuthnRequest(session)).thenReturn(null);
+        Mockito.when(assertionWrapper.getIssuer()).thenReturn(TestConstants.IDP_ENTITY_ID);
         Mockito.when(assertionWrapper.getNsisLevel()).thenReturn(NSISLevel.SUBSTANTIAL);
         Mockito.when(assertionWrapper.getSubjectNameId()).thenReturn(nameID);
         Mockito.when(assertionWrapper.getSubjectNameIdFormat()).thenReturn(NameID.PERSISTENT);
@@ -131,6 +157,7 @@ public class LogoutRequestHandlerTest {
         Mockito.when(request.getMethod()).thenReturn("GET"); // Method: GET
         Mockito.when(request.getParameter("RelayState")).thenReturn(null); // No RelayState
         Mockito.when(request.getParameter("SAMLRequest")).thenReturn(base64EncodedMessage);
+        Mockito.when(request.getParameterMap()).thenReturn(Map.of("SAMLResponse", new String[]{base64EncodedMessage}));
 
         // Mock DummyOutputStream
         ServletOutputStream outputStreamMock = Mockito.mock(ServletOutputStream.class);
@@ -187,6 +214,7 @@ public class LogoutRequestHandlerTest {
         Mockito.when(sessionHandler.isAuthenticated(session)).thenReturn(true);
         Mockito.when(sessionHandler.getAssertion(sessionIndex)).thenReturn(assertionWrapper);
         Mockito.when(sessionHandler.getAuthnRequest(session)).thenReturn(null);
+        Mockito.when(assertionWrapper.getIssuer()).thenReturn(TestConstants.IDP_ENTITY_ID);
         Mockito.when(assertionWrapper.getNsisLevel()).thenReturn(NSISLevel.SUBSTANTIAL);
         Mockito.when(assertionWrapper.getSubjectNameId()).thenReturn(nameID);
         Mockito.when(assertionWrapper.getSubjectNameIdFormat()).thenReturn(NameID.PERSISTENT);
@@ -293,7 +321,7 @@ public class LogoutRequestHandlerTest {
         final String soapXml = "<soapenv:Envelope xmlns:soapenv=\"http://schemas.xmlsoap.org/soap/envelope/\"><soapenv:Body>" +
                 StringUtil.elementToString(marshalledMessage) + "</soapenv:Body></soapenv:Envelope>";
 
-        InputStream inputStream = new ByteArrayInputStream(soapXml.getBytes("UTF-8"));
+        InputStream inputStream = new ByteArrayInputStream(soapXml.getBytes(StandardCharsets.UTF_8));
 
         // Mock session with state: not logged in at any NSIS level
         HttpSession session = Mockito.mock(HttpSession.class);
@@ -379,7 +407,7 @@ public class LogoutRequestHandlerTest {
         // Deflate
         final ByteArrayOutputStream bytesOut = new ByteArrayOutputStream();
         final DeflaterOutputStream deflaterStream = new DeflaterOutputStream(bytesOut, new Deflater(8, true));
-        deflaterStream.write(messageXML.getBytes("UTF-8"));
+        deflaterStream.write(messageXML.getBytes(StandardCharsets.UTF_8));
         deflaterStream.finish();
 
         // Base64Encode
@@ -400,6 +428,7 @@ public class LogoutRequestHandlerTest {
         Mockito.when(request.getMethod()).thenReturn("GET"); // Method: GET
         Mockito.when(request.getParameter("RelayState")).thenReturn(null); // No RelayState
         Mockito.when(request.getParameter("SAMLRequest")).thenReturn(base64EncodedMessage);
+        Mockito.when(request.getParameterMap()).thenReturn(Map.of("SAMLRequest", new String[]{base64EncodedMessage}));
 
         // Mock DummyOutputStream
         ServletOutputStream outputStreamMock = Mockito.mock(ServletOutputStream.class);

@@ -5,9 +5,12 @@ import java.time.Instant;
 import java.util.List;
 
 import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.mockito.Mockito;
+import org.mockserver.client.MockServerClient;
+import org.mockserver.matchers.Times;
 import org.opensaml.core.config.InitializationException;
 import org.opensaml.messaging.context.MessageContext;
 import org.opensaml.saml.common.assertion.AssertionValidationException;
@@ -32,7 +35,26 @@ import dk.gov.oio.saml.util.SamlHelper;
 import dk.gov.oio.saml.util.TestConstants;
 import jakarta.servlet.http.HttpServletRequest;
 
+import static org.mockserver.model.HttpRequest.request;
+import static org.mockserver.model.HttpResponse.response;
+
 public class AssertionValidationServiceTest extends BaseServiceTest {
+
+    @BeforeAll
+    public static void beforeAll(MockServerClient idp) throws Exception {
+        // make sure IdP responds with useful metadata
+        idp
+                .when(request()
+                              .withMethod("GET")
+                              .withPath("/saml/metadata"),
+                      Times.unlimited()
+                )
+                .respond(
+                        response()
+                                .withStatusCode(200)
+                                .withBody(TestConstants.IDP_METADATA)
+                );
+    }
 
     @DisplayName("Test that validator will pass a valid assertion")
     @Test

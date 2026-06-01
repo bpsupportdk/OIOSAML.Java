@@ -11,9 +11,8 @@ import dk.gov.oio.saml.config.Configuration;
 import dk.gov.oio.saml.util.TestConstants;
 
 @ExtendWith(MockServerExtension.class)
-@MockServerSettings(ports = { 8081 })
+@MockServerSettings()
 public class BaseServiceTest {
-
     @BeforeAll
     public static void beforeAll(MockServerClient idp) throws Exception {
         ClassLoader classLoader = AssertionServiceTest.class.getClassLoader();
@@ -29,7 +28,7 @@ public class BaseServiceTest {
                 .setServletRoutingPathSuffixLogoutResponse(TestConstants.SP_ROUTING_LOGOUT_RESPONSE)
                 .setServletRoutingPathSuffixAssertion(TestConstants.SP_ROUTING_ASSERTION)
                 .setIdpEntityID(TestConstants.IDP_ENTITY_ID)
-                .setIdpMetadataUrl(TestConstants.IDP_METADATA_URL)
+                .setIdpMetadataUrl(TestConstants.getIdpMetadataUrl(idp))
                 .setSessionHandlerFactoryClassName(TestSessionHandlerFactory.class.getName())
                 .setKeystoreLocation(keystoreLocation)
                 .setKeystorePassword(TestConstants.SP_KEYSTORE_PASSWORD)

@@ -1,14 +1,18 @@
 package dk.gov.oio.saml.session.inmemory;
 
+import dk.gov.oio.saml.config.Configuration;
 import dk.gov.oio.saml.model.NSISLevel;
 import dk.gov.oio.saml.service.AssertionService;
 import dk.gov.oio.saml.service.AuthnRequestService;
+import dk.gov.oio.saml.service.OIOSAML3Service;
 import dk.gov.oio.saml.session.AssertionWrapper;
 import dk.gov.oio.saml.session.AuthnRequestWrapper;
 import dk.gov.oio.saml.session.LogoutRequestWrapper;
+import dk.gov.oio.saml.session.TestSessionHandlerFactory;
 import dk.gov.oio.saml.util.IdpUtil;
 import dk.gov.oio.saml.util.InternalException;
 import dk.gov.oio.saml.util.TestConstants;
+import jakarta.servlet.http.HttpServletRequest;
 import org.junit.jupiter.api.*;
 import org.mockito.Mockito;
 import org.opensaml.core.config.InitializationException;
@@ -30,11 +34,36 @@ class InMemorySessionHandlerTest {
 
     private InMemorySessionHandler sessionHandler;
     private HttpSession session;
+    private HttpServletRequest request;
+
+    @BeforeAll
+    static void setupAll() throws InternalException, InitializationException {
+        Configuration configuration = new Configuration.Builder()
+                .setSpEntityID(TestConstants.SP_ENTITY_ID)
+                .setBaseUrl(TestConstants.SP_BASE_URL)
+                .setServletRoutingPathPrefix(TestConstants.SP_ROUTING_BASE)
+                .setServletRoutingPathSuffixError(TestConstants.SP_ROUTING_ERROR)
+                .setServletRoutingPathSuffixMetadata(TestConstants.SP_ROUTING_METADATA)
+                .setServletRoutingPathSuffixLogout(TestConstants.SP_ROUTING_LOGOUT)
+                .setServletRoutingPathSuffixLogoutResponse(TestConstants.SP_ROUTING_LOGOUT_RESPONSE)
+                .setServletRoutingPathSuffixAssertion(TestConstants.SP_ROUTING_ASSERTION)
+                .setIdpEntityID(TestConstants.IDP_ENTITY_ID)
+                .setIdpMetadataUrl(TestConstants.IDP_METADATA_URL)
+                .setSessionHandlerFactoryClassName(TestSessionHandlerFactory.class.getName())
+                .setKeystoreLocation(TestConstants.SP_KEYSTORE_LOCATION)
+                .setKeystorePassword(TestConstants.SP_KEYSTORE_PASSWORD)
+                .setKeyAlias(TestConstants.SP_KEYSTORE_ALIAS)
+                .build();
+        configuration.setSessionFixationProtectEnabled(false);
+
+        OIOSAML3Service.init(configuration);
+    }
 
     @BeforeEach
     void setUp() throws Exception {
         sessionHandler = new InMemorySessionHandler(TRACKED_SESSION_IDS);
         session = Mockito.mock(HttpSession.class);
+        request = Mockito.mock(HttpServletRequest.class);
         Mockito.when(session.getId()).thenReturn(SESSION_ID);
     }
 
