@@ -118,10 +118,10 @@ public class InMemorySessionHandler implements SessionHandler {
         boolean sessionFixationProtectEnabled = OIOSAML3Service.getConfig().isSessionFixationProtectEnabled();
         HttpSession newSession = null;
         if (sessionFixationProtectEnabled) {
-            session.invalidate();
-            newSession = httpRequest.getSession(true);
-            log.info("Renewed session, old={}, new={}", session.getId(), newSession.getId());
-            // Replace session now to protect from session fixation attacks
+            var oldSessionId =  session != null ? session.getId() : null;
+            var newSessionId = httpRequest.changeSessionId(); // gives the current session a new id, session fixations get invalidated.
+            newSession = httpRequest.getSession(false);
+            log.info("Renewed session, old={}, new={}", oldSessionId, newSessionId);
         }
 
         HttpSession currentSession = newSession != null ? newSession : session;
