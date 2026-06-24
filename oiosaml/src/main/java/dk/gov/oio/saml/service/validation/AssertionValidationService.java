@@ -394,15 +394,17 @@ public class AssertionValidationService {
 
         // Verify that the IdP returned the correct type person or professional if a specific type was requested in the AuthnRequest
         String shouldStartWith = null;
-        for (String authnContextClassRef : authnRequest.getAuthnContextClassRefValues()) {
-            if (Constants.ATTRIBUTE_PROFILE_PERSON.equals(authnContextClassRef)) {
-                shouldStartWith = "https://data.gov.dk/model/core/eid/person";
-                break;
-            }
+        if(authnRequest != null) {
+            for (String authnContextClassRef : authnRequest.getAuthnContextClassRefValues()) {
+                if (Constants.ATTRIBUTE_PROFILE_PERSON.equals(authnContextClassRef)) {
+                    shouldStartWith = "https://data.gov.dk/model/core/eid/person";
+                    break;
+                }
 
-            if (Constants.ATTRIBUTE_PROFILE_PERSON.equals(authnContextClassRef)) {
-                shouldStartWith = "https://data.gov.dk/model/core/eid/professional";
-                break;
+                if (Constants.ATTRIBUTE_PROFILE_PROFESSIONAL.equals(authnContextClassRef)) {
+                    shouldStartWith = "https://data.gov.dk/model/core/eid/professional";
+                    break;
+                }
             }
         }
 

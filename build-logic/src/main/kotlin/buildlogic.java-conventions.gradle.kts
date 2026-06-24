@@ -32,7 +32,7 @@ repositories {
 }
 
 group = "dk.digst"
-version = "3.2.2-cap-4"
+version = "3.2.2-cap-5"
 
 java {
     toolchain {
