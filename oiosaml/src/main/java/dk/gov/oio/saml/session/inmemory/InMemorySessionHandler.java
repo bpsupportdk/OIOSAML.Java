@@ -36,9 +36,11 @@ import jakarta.servlet.http.HttpSession;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.time.Duration;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentSkipListSet;
+import java.util.function.BiConsumer;
 
 /**
  * Handle session state across requests and instances, using an in memory session storage.
@@ -48,11 +50,11 @@ public class InMemorySessionHandler implements SessionHandler {
 
     private int sessionHandlerNumTrackedSessionIds;
 
-    private final Map<String, TimeOutWrapper<AuthnRequestWrapper>> authnRequests = new ConcurrentHashMap<String, TimeOutWrapper<AuthnRequestWrapper>>();
-    private final Map<String, TimeOutWrapper<AssertionWrapper>> assertions = new ConcurrentHashMap<String, TimeOutWrapper<AssertionWrapper>>();
-    private final Map<String, TimeOutWrapper<LogoutRequestWrapper>> logoutRequests = new ConcurrentHashMap<String, TimeOutWrapper<LogoutRequestWrapper>>();
+    private final Map<String, TimeOutWrapper<AuthnRequestWrapper>> authnRequests = new ConcurrentHashMap<>();
+    private final Map<String, TimeOutWrapper<AssertionWrapper>> assertions = new ConcurrentHashMap<>();
+    private final Map<String, TimeOutWrapper<LogoutRequestWrapper>> logoutRequests = new ConcurrentHashMap<>();
 
-    private final Map<String, TimeOutWrapper<String>> sessionIndexMap = new ConcurrentHashMap<String, TimeOutWrapper<String>>();
+    private final Map<String, TimeOutWrapper<String>> sessionIndexMap = new ConcurrentHashMap<>();
     private final ConcurrentSkipListSet<String> usedAssertionIds = new ConcurrentSkipListSet<>();
 
     public InMemorySessionHandler(int sessionHandlerNumTrackedSessionIds) {
@@ -121,7 +123,7 @@ public class InMemorySessionHandler implements SessionHandler {
             var oldSessionId =  session != null ? session.getId() : null;
             var newSessionId = httpRequest.changeSessionId(); // gives the current session a new id, session fixations get invalidated.
             newSession = httpRequest.getSession(false);
-            log.info("Renewed session, old={}, new={}", oldSessionId, newSessionId);
+            log.debug("Renewed session, old={}, new={}", oldSessionId, newSessionId);
         }
 
         HttpSession currentSession = newSession != null ? newSession : session;
@@ -270,34 +272,41 @@ public class InMemorySessionHandler implements SessionHandler {
     @Override
     public void cleanup(long maxInactiveIntervalSeconds) {
         // Trim usedAssertionIds to size with sessionHandlerNumTrackedSessionIds
-        long maxInactiveIntervalMillis = maxInactiveIntervalSeconds * 1000;
+        var maxInactiveIntervalMillis = Duration.ofSeconds(maxInactiveIntervalSeconds);
         while (!usedAssertionIds.isEmpty() && usedAssertionIds.size() > sessionHandlerNumTrackedSessionIds) {
             usedAssertionIds.remove(usedAssertionIds.pollFirst());
         }
         cleanup(sessionIndexMap, maxInactiveIntervalMillis, "SessionIndexMap");
-        cleanup(assertions, maxInactiveIntervalMillis, "Assertions");
+        cleanup(assertions, maxInactiveIntervalMillis, "Assertions", (String key, AssertionWrapper tow) -> {
+            OIOSAML3Service.getAuditService()
+                           .auditLog(new AuditService.Builder().withAuthnAttribute("ACTION", "TIMEOUT")
+                                                               .withAuthnAttribute("DESCRIPTION", "SessionDestroyed")
+                                                               .withAuthnAttribute("SP_SESSION_ID", String.valueOf(key))
+                                                               .withAuthnAttribute("ASSERTION_ID", tow.getID())
+                                                               .withAuthnAttribute("SUBJECT_NAME_ID", tow.getSubjectNameId()));
+        });
         cleanup(authnRequests, maxInactiveIntervalMillis, "AuthnRequests");
         cleanup(logoutRequests, maxInactiveIntervalMillis, "LogoutRequests");
     }
 
-    private <E, T> void cleanup(Map<E, TimeOutWrapper<T>> map, long cleanupDelay, String msg) {
-        log.debug("Running cleanup timer on {}", map);
-        for (Object key : map.keySet()) {
-            TimeOutWrapper<T> tow = map.get(key);
+    protected <E, T> void cleanup(Map<E, TimeOutWrapper<T>> map, Duration cleanupDelay, String msg) {
+        cleanup(map, cleanupDelay, msg, null);
+    }
+
+    protected <E, T> void cleanup(Map<E, TimeOutWrapper<T>> map, Duration cleanupDelay, String msg, BiConsumer<E, T> onRemoveAction) {
+        log.debug("Running cleanup timer on {}", msg);
+        map.entrySet().removeIf(entry -> {
+            var tow = entry.getValue();
             if (tow.isExpired(cleanupDelay)) {
                 log.debug("Expiring {}", tow);
-                if (tow.getObject() instanceof AssertionWrapper) {
-                    OIOSAML3Service.getAuditService().auditLog(new AuditService
-                            .Builder()
-                            .withAuthnAttribute("ACTION", "TIMEOUT")
-                            .withAuthnAttribute("DESCRIPTION", "SessionDestroyed")
-                            .withAuthnAttribute("SP_SESSION_ID", String.valueOf(key))
-                            .withAuthnAttribute("ASSERTION_ID", ((AssertionWrapper) tow.getObject()).getID())
-                            .withAuthnAttribute("SUBJECT_NAME_ID", ((AssertionWrapper) tow.getObject()).getSubjectNameId()));
+                if(onRemoveAction != null) {
+                    onRemoveAction.accept(entry.getKey(), tow.getObject());
                 }
-                map.remove(key);
+
+                return true;
             }
-        }
+            return false;
+        });
     }
 
     private void logout(String sessionId) {

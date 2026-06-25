@@ -23,29 +23,32 @@
  */
 package dk.gov.oio.saml.session.inmemory;
 
+import java.time.Duration;
+import java.time.Instant;
+
 /**
  * In memory session timeout functionality, enabling cleanup session data that has expired/timed out
  * @param <T> Add timeout functionality to this class
  */
 public class TimeOutWrapper<T> {
 	private final T object;
-	private long accesstime;
+	private Instant accesstime;
 
 	public TimeOutWrapper(T object) {
 		this.object = object;
-		this.accesstime = System.currentTimeMillis();
+		this.accesstime = Instant.now();
 	}
 
 	public T getObject() {
 		return object;
 	}
 
-	public boolean isExpired(long delay) {
-		return (System.currentTimeMillis() > accesstime + delay);
+	public boolean isExpired(Duration delay) {
+		return (Instant.now().isAfter(accesstime.plus(delay)));
 	}
 
 	public void setAccesstime() {
-		accesstime = System.currentTimeMillis();
+		accesstime = Instant.now();
 	}
 	
 	@Override
