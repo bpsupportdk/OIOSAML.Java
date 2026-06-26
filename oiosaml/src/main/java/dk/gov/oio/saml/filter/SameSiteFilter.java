@@ -1,9 +1,6 @@
 package dk.gov.oio.saml.filter;
 
-import dk.gov.oio.saml.util.StringUtil;
-
 import java.io.IOException;
-import java.io.PrintWriter;
 import java.util.Collection;
 
 import jakarta.servlet.Filter;
@@ -15,44 +12,43 @@ import jakarta.servlet.http.HttpServletResponse;
 
 public class SameSiteFilter implements Filter {
     private static final String SAMESITE_COOKIE_HEADER = "Set-Cookie";
-    private static final String SAMESITE_ATTRIBITE_NAME = "SameSite";
-    private static final String SAMESITE_NONE_VALUE = "None";
 
     @Override
     public void doFilter(final ServletRequest request, final ServletResponse response, final FilterChain chain) throws IOException, ServletException {
+        chain.doFilter(request, response);
+
         if (response instanceof HttpServletResponse httpServletResponse) {
             patchSameSiteCookies(httpServletResponse);
-            chain.doFilter(request, response);
         }
-
-        chain.doFilter(request, response);
     }
 
     private void patchSameSiteCookies(HttpServletResponse response) {
         Collection<String> headers = response.getHeaders(SAMESITE_COOKIE_HEADER);
+
         if (headers == null || headers.isEmpty()) {
             return;
         }
 
-        boolean firstCookie = true;
+        boolean first = true;
+
         for (String header : headers) {
-            if (StringUtil.isEmpty(header)) {
+            if (header == null || header.isEmpty()) {
                 continue;
             }
 
-            if (!header.contains(SAMESITE_ATTRIBITE_NAME)) {
-                header = header + ";" + SAMESITE_ATTRIBITE_NAME + "=" + SAMESITE_NONE_VALUE;
+            String updated = header;
+
+            if (!header.toLowerCase().contains("samesite")) {
+                updated = header + "; SameSite=None";
             }
 
-            // overwrite existing cookies on first run, then append the new ones
-            if (firstCookie) {
-                response.setHeader(SAMESITE_COOKIE_HEADER, header);
+            if (first) {
+                response.setHeader(SAMESITE_COOKIE_HEADER, updated);
+                first = false;
+            } else {
+                response.addHeader(SAMESITE_COOKIE_HEADER, updated);
             }
-            else {
-                response.addHeader(SAMESITE_COOKIE_HEADER, header);
-            }
-
-            firstCookie = false;
         }
     }
+
 }

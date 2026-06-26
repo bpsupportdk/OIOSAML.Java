@@ -32,7 +32,7 @@ repositories {
 }
 
 group = "dk.digst"
-version = "3.2.2-opensaml-5.2.3-cap-8"
+version = "3.2.2-opensaml-5.2.3-cap-9"
 
 java {
     toolchain {
